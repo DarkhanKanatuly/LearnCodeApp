@@ -1,7 +1,9 @@
 package com.example.learncodeapp
 
-sealed class Screen(val route: String) {
-    object Home : Screen("home")
-    object Profile : Screen("profile")
-    object Settings : Screen("settings")  // ✅ Добавили "Настройки"
+enum class Screen(val route: String) {
+    Home("home"),
+    Lessons("lessons"),
+    Messenger("messenger"),
+    Profile("profile"),
+    Settings("settings")
 }
