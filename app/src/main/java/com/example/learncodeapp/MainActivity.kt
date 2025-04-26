@@ -27,7 +27,10 @@ import com.example.learncodeapp.screens.*
 import com.example.learncodeapp.ui.theme.AppTheme
 import com.example.learncodeapp.viewmodels.LanguageViewModel
 import com.example.learncodeapp.viewmodels.LanguageViewModelFactory
-import com.example.learncodeapp.Screen
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.sp
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -121,6 +124,9 @@ fun BottomNavigationBar(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // Заглушка: общее количество непрочитанных сообщений (в будущем можно получать с сервера)
+    val unreadMessagesCount by remember { mutableStateOf(3) } // 2 + 0 + 1 из списка чатов
+
     NavigationBar(
         containerColor = Color(0xFF6A4CAF),
         contentColor = Color.White
@@ -129,7 +135,30 @@ fun BottomNavigationBar(navController: NavHostController) {
             val screen = item.first
             val icon = item.second
             NavigationBarItem(
-                icon = { Icon(imageVector = icon, contentDescription = screen.route) },
+                icon = {
+                    Box {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = screen.route
+                        )
+                        // Показываем бейдж для Messenger, если есть непрочитанные сообщения
+                        if (screen == Screen.Messenger && unreadMessagesCount > 0) {
+                            Badge(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 5.dp, y = (-5).dp),
+                                containerColor = Color.Red,
+                                contentColor = Color.White
+                            ) {
+                                Text(
+                                    text = unreadMessagesCount.toString(),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(2.dp)
+                                )
+                            }
+                        }
+                    }
+                },
                 selected = currentRoute == screen.route,
                 onClick = {
                     if (currentRoute != screen.route) {

@@ -5,45 +5,71 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.learncodeapp.data.AppDatabase
 import com.example.learncodeapp.models.Lesson
+import com.example.learncodeapp.models.toLesson
+import com.example.learncodeapp.models.toLessonEntity
 import com.example.learncodeapp.network.RetrofitClient
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LessonsScreen(navController: NavController) {
+    val context = LocalContext.current
+    val database = AppDatabase.getDatabase(context)
+
     val scope = rememberCoroutineScope()
     var lessons by remember { mutableStateOf<List<Lesson>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") } // Добавляем состояние для поискового запроса
 
+    // Загрузка уроков
     LaunchedEffect(Unit) {
         scope.launch {
             try {
                 val response = RetrofitClient.apiService.getLessons()
                 if (response.isSuccessful) {
                     lessons = response.body() ?: emptyList()
+                    database.lessonDao().deleteAll()
+                    database.lessonDao().insertAll(lessons.map { it.toLessonEntity() })
                 } else {
                     errorMessage = "Failed to load lessons: ${response.code()}"
+                    lessons = database.lessonDao().getAllLessons().map { it.toLesson() }
                 }
             } catch (e: Exception) {
                 errorMessage = "Error: ${e.message}"
+                lessons = database.lessonDao().getAllLessons().map { it.toLesson() }
             } finally {
                 isLoading = false
             }
         }
+    }
+
+    // Сохраняем уроки в SavedStateHandle для передачи на LessonDetailScreen
+    LaunchedEffect(lessons) {
+        navController.currentBackStackEntry?.savedStateHandle?.set("lessons", lessons)
+    }
+
+    // Фильтруем уроки на основе поискового запроса
+    val filteredLessons = lessons.filter {
+        it.title.contains(searchQuery, ignoreCase = true) || it.language.contains(searchQuery, ignoreCase = true)
     }
 
     Scaffold(
@@ -71,17 +97,36 @@ fun LessonsScreen(navController: NavController) {
         },
         containerColor = Color(0xFFF9F7FF)
     ) { padding ->
-        // Сохраняем уроки в SavedStateHandle для передачи на LessonDetailScreen
-        LaunchedEffect(lessons) {
-            navController.currentBackStackEntry?.savedStateHandle?.set("lessons", lessons)
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
         ) {
+            // Поле поиска
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Поиск уроков") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search Icon",
+                        tint = Color(0xFF6A4CAF)
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF6A4CAF),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFF6A4CAF),
+                    cursorColor = Color(0xFF6A4CAF)
+                )
+            )
+
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -102,11 +147,15 @@ fun LessonsScreen(navController: NavController) {
                                 val response = RetrofitClient.apiService.getLessons()
                                 if (response.isSuccessful) {
                                     lessons = response.body() ?: emptyList()
+                                    database.lessonDao().deleteAll()
+                                    database.lessonDao().insertAll(lessons.map { it.toLessonEntity() })
                                 } else {
                                     errorMessage = "Failed to load lessons: ${response.code()}"
+                                    lessons = database.lessonDao().getAllLessons().map { it.toLesson() }
                                 }
                             } catch (e: Exception) {
                                 errorMessage = "Error: ${e.message}"
+                                lessons = database.lessonDao().getAllLessons().map { it.toLesson() }
                             } finally {
                                 isLoading = false
                             }
@@ -117,9 +166,9 @@ fun LessonsScreen(navController: NavController) {
                     Text("Попробовать снова")
                 }
             } else {
-                if (lessons.isEmpty()) {
+                if (filteredLessons.isEmpty()) {
                     Text(
-                        text = "Нет уроков",
+                        text = if (searchQuery.isEmpty()) "Нет уроков" else "Уроки не найдены",
                         fontSize = 16.sp,
                         color = Color.Gray,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -128,7 +177,7 @@ fun LessonsScreen(navController: NavController) {
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(lessons) { lesson ->
+                        items(filteredLessons) { lesson ->
                             AnimatedVisibility(visible = true) {
                                 Card(
                                     modifier = Modifier
@@ -145,7 +194,6 @@ fun LessonsScreen(navController: NavController) {
                                         modifier = Modifier.padding(16.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Иконка языка
                                         Icon(
                                             imageVector = Icons.Default.PlayArrow,
                                             contentDescription = "Lesson Icon",
@@ -175,19 +223,16 @@ fun LessonsScreen(navController: NavController) {
                                                 color = Color.Black
                                             )
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            // Индикатор прогресса (заглушка)
                                             LinearProgressIndicator(
-                                                progress = { 0.5f }, // Пока 50% (можно хранить прогресс в базе)
+                                                progress = { if (lesson.completed) 1.0f else 0.5f },
                                                 modifier = Modifier.fillMaxWidth(),
                                                 color = Color(0xFF4CAF50),
                                                 trackColor = Color.LightGray
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        // Кнопка "Начать"
                                         Button(
                                             onClick = {
-                                                // Переход на детальный экран урока
                                                 navController.navigate("lesson_detail/${lesson.id}")
                                             },
                                             colors = ButtonDefaults.buttonColors(
