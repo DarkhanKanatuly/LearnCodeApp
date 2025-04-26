@@ -69,4 +69,10 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0") // Для парсинга JSON
+    implementation("com.squareup.okhttp3:okhttp:4.12.0") // HTTP-клиент
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // Для логирования запросов
+    // Coroutines для асинхронных вызовов
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }

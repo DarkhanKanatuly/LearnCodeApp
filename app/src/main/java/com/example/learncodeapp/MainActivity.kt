@@ -22,10 +22,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.room.Room
 import com.example.learncodeapp.data.AppDatabase
+import com.example.learncodeapp.models.Lesson
 import com.example.learncodeapp.screens.*
 import com.example.learncodeapp.ui.theme.AppTheme
 import com.example.learncodeapp.viewmodels.LanguageViewModel
 import com.example.learncodeapp.viewmodels.LanguageViewModelFactory
+import com.example.learncodeapp.Screen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,16 +52,29 @@ fun MainScreen() {
     val viewModel: LanguageViewModel = viewModel(factory = LanguageViewModelFactory(database))
     val navController = rememberNavController()
 
+    // Определяем, нужно ли показывать BottomNavigationBar
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute !in listOf("login", "register")
+
     Scaffold(
         bottomBar = {
-            BottomNavigationBar(navController = navController)
+            if (showBottomBar) {
+                BottomNavigationBar(navController = navController)
+            }
         }
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = "login", // Изменили startDestination на login
             modifier = Modifier.padding(padding)
         ) {
+            composable("login") {
+                LoginScreen(navController = navController)
+            }
+            composable("register") {
+                RegisterScreen(navController = navController)
+            }
             composable(Screen.Home.route) {
                 HomeScreen(navController = navController, viewModel = viewModel)
             }
@@ -83,6 +98,12 @@ fun MainScreen() {
                     viewModel = viewModel
                 )
             }
+            composable("lesson_detail/{lessonId}") { backStackEntry ->
+                val lessonId = backStackEntry.arguments?.getString("lessonId")?.toLongOrNull()
+                val lessons = navController.previousBackStackEntry?.savedStateHandle?.get<List<Lesson>>("lessons") ?: emptyList()
+                val lesson = lessons.find { it.id == lessonId }
+                LessonDetailScreen(navController = navController, lesson = lesson)
+            }
         }
     }
 }
@@ -92,7 +113,7 @@ fun BottomNavigationBar(navController: NavHostController) {
     val items = listOf(
         Pair(Screen.Home, Icons.Default.Home),
         Pair(Screen.Lessons, Icons.Default.List),
-        Pair(Screen.Messenger, Icons.Outlined.ChatBubbleOutline), // Используем ChatBubbleOutline из Icons.Outlined
+        Pair(Screen.Messenger, Icons.Outlined.ChatBubbleOutline),
         Pair(Screen.Profile, Icons.Default.Person),
         Pair(Screen.Settings, Icons.Default.Settings)
     )
