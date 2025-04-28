@@ -1,46 +1,39 @@
 package com.example.learncodeapp.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
 import com.example.learncodeapp.viewmodels.LanguageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LanguageDetailScreen(navController: NavController, languageName: String, viewModel: LanguageViewModel) {
-    val languages by viewModel.languages.collectAsState(initial = emptyList())
-    val language = languages.find { it.name == languageName }
-    val uriHandler = LocalUriHandler.current
+fun LanguageDetailScreen(navController: NavController, viewModel: LanguageViewModel) {
+    val languageId = navController.currentBackStackEntry?.arguments?.getString("languageId")?.toLongOrNull()
+    val languages by remember { mutableStateOf(viewModel.languages) }
+    val language = languages.find { lang -> lang.id == languageId }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = language?.name ?: "Язык",
+                        text = language?.name ?: "Язык не найден",
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -53,24 +46,36 @@ fun LanguageDetailScreen(navController: NavController, languageName: String, vie
         },
         containerColor = Color(0xFFF9F7FF)
     ) { padding ->
-        if (language != null) {
+        if (language == null) {
+            Text(
+                text = "Язык не найден",
+                fontSize = 16.sp,
+                color = Color.Black,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .wrapContentSize()
+            )
+        } else {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(16.dp)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Image(
-                    painter = rememberAsyncImagePainter(language.thumbnailUrl),
-                    contentDescription = language.name,
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(16.dp)),
-                    contentScale = ContentScale.Crop
-                )
+                        .height(200.dp),
+                    color = Color(0xFF6A4CAF)
+                ) {
+                    Text(
+                        text = language.name.first().toString(),
+                        color = Color.White,
+                        fontSize = 48.sp,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = language.description,
@@ -80,16 +85,16 @@ fun LanguageDetailScreen(navController: NavController, languageName: String, vie
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = {
-                        uriHandler.openUri("https://www.youtube.com/watch?v=${language.videoId}")
+                        // Временно убрали переход на videoPlayerScreen
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6A4CAF)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6A4CAF)
+                    )
                 ) {
                     Text("Смотреть видео", color = Color.White, fontSize = 16.sp)
                 }
             }
-        } else {
-            Text("Язык не найден", modifier = Modifier.padding(padding))
         }
     }
 }
